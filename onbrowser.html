@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+    <title>Python Binary Tree Visualization</title>
+    
+
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
+    <script defer src="https://pyscript.net/latest/pyscript.js"></script>
+    <py-config>
+        packages = ["matplotlib"]
+    </py-config>
+
+    <style>
+        body { font-family: Arial, sans-serif; }
+        #tree-plot { width: 100%; max-width: 800px; height: 600px; }
+    </style>
+</head>
+
+<body>
+    <h1>Python Binary Tree Visualization</h1>
+    <div>
+        <label for="root-value">Root Value:</label>
+        <input type="text" id="root-value">
+        <button id="set-root-btn" pys-onClick="set_root">Set Root</button>
+    </div>
+    <div>
+        <label for="current-node-value">Current Node Value:</label>
+        <input type="text" id="current-node-value">
+    </div>
+    <div>
+        <label for="new-node-value">New Node Value:</label>
+        <input type="text" id="new-node-value">
+    </div>
+    <div>
+        <input type="radio" id="insert-left" name="insert-side" value="left" checked>
+        <label for="insert-left">Insert Left</label>
+        <input type="radio" id="insert-right" name="insert-side" value="right">
+        <label for="insert-right">Insert Right</label>
+    </div>
+    <button id="insert-node-btn" pys-onClick="insert_node">Insert Node</button>
+    <div id="result"></div>
+    <div id="tree-plot"></div>
+
+    <py-script>
+import js
+from pyodide.ffi import create_proxy
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
+class TreeNode:
+    def __init__(self, val):
+        self.val = val
+        self.left = None
+        self.right = None
+
+class BinaryTree:
+    def __init__(self, root_val):
+        self.root = TreeNode(root_val)
+
+    def insertleft(self, current, val):
+        if current.left is None:
+            current.left = TreeNode(val)
+        else:
+            new_node = TreeNode(val)
+            new_node.left = current.left
+            current.left = new_node
+
+    def insertright(self, current, val):
+        if current.right is None:
+            current.right = TreeNode(val)
+        else:
+            new_node = TreeNode(val)
+            new_node.right = current.right
+            current.right = new_node
+
+    def visualize(self):
+        fig, ax = plt.subplots(figsize=(8, 6))
+        self._draw_tree(self.root)
+        ax.axis('off')
+        plt.tight_layout()
+        
+        canvas = FigureCanvasAgg(fig)
+        canvas.draw()
+        image = canvas.buffer_rgba()
+        
+        # Convert the image to base64
+        import base64
+        from io import BytesIO
+        buffer = BytesIO()
+        fig.savefig(buffer, format='png')
+        buffer.seek(0)
+        image_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+        
+        # Update the image in the HTML
+        js.document.getElementById('tree-plot').innerHTML = f'<img src="data:image/png;base64,{image_base64}" />'
+        
+        plt.close(fig)
+
+    def _draw_tree(self, node, x=0, y=0, dx=1, dy=-1, layer=1):
+        if node:
+            plt.text(x, y, node.val, ha='center', va='center', bbox=dict(facecolor='lightblue', edgecolor='black', boxstyle='circle'))
+            if node.left:
+                plt.plot([x, x - dx], [y, y + dy], color='black')
+                self._draw_tree(node.left, x - dx, y + dy, dx / 2, dy, layer + 1)
+            if node.right:
+                plt.plot([x, x + dx], [y, y + dy], color='black')
+                self._draw_tree(node.right, x + dx, y + dy, dx / 2, dy, layer + 1)
+
+def find_node(node, value):
+    if node is None:
+        return None
+    if node.val == value:
+        return node
+    left = find_node(node.left, value)
+    if left:
+        return left
+    return find_node(node.right, value)
+
+tree = None
+
+def set_root(event):
+    global tree
+    root_value = js.document.getElementById('root-value').value
+    tree = BinaryTree(root_value)
+    js.document.getElementById('result').innerText = f"Root set to {root_value}"
+    tree.visualize()
+
+def insert_node(event):
+    if tree is None:
+        js.document.getElementById('result').innerText = "Tree not initialized. Set root first."
+        return
+
+    current_value = js.document.getElementById('current-node-value').value
+    new_value = js.document.getElementById('new-node-value').value
+    side = 'left' if js.document.getElementById('insert-left').checked else 'right'
+
+    current_node = find_node(tree.root, current_value)
+    if current_node is None:
+        js.document.getElementById('result').innerText = f"Node {current_value} not found!"
+    else:
+        if side == 'left':
+            tree.insertleft(current_node, new_value)
+            js.document.getElementById('result').innerText = f"Inserted {new_value} to the left of {current_value}"
+        else:
+            tree.insertright(current_node, new_value)
+            js.document.getElementById('result').innerText = f"Inserted {new_value} to the right of {current_value}"
+
+    tree.visualize()
+
+# Bind Python functions to HTML buttons
+js.document.getElementById('set-root-btn').addEventListener('click', create_proxy(set_root))
+js.document.getElementById('insert-node-btn').addEventListener('click', create_proxy(insert_node))
+    </py-script>
+</body>
+</html>
