@@ -130,7 +130,7 @@ def set_root(event):
 
 def insert_node(event):
     if tree is None:
-        js.document.getElementById('result').innerText = "Tree not initialized. Set root first."
+        js.document.getElementById('result').innerText = "Tree not initialized. "You have not set a root node!."
         return
 
     current_value = js.document.getElementById('current-node-value').value
